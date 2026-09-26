@@ -1,0 +1,47 @@
+# Python runtime and generated files
+venv/
+__pycache__/
+*.pyc
+
+# Local databases, database backups, and SQLite sidecars
+*.db
+*.db.*
+*.db-*
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.sqlite3-*
+
+# Legacy task data (not application source)
+tasks.json
+
+# Environment files, credentials, and secrets
+.env
+.env.*
+*.env
+*.env.*
+*credential*
+*Credential*
+*secret*
+*Secret*
+.htpasswd
+.htpasswd.*
+.netrc
+.netrc.*
+auth.conf
+password*
+*passwords*
+token
+token.*
+tokens.*
+*.token
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+id_rsa*
+id_dsa*
+id_ecdsa*
+id_ed25519*
+.ssh/
