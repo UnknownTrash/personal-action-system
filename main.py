@@ -1,33 +1,92 @@
 from fastapi import FastAPI, HTTPException, Query
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import AfterValidator, BaseModel, field_validator
+from typing import Annotated, Literal, Optional
+import re
 import sqlite3
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 app = FastAPI()
 
 DB_FILE = "/opt/focus/tasks.db"
+LOCAL_TIMEZONE = ZoneInfo("Asia/Hong_Kong")
+Priority = Literal["High", "Medium", "Low"]
+TaskStatus = Literal["Not Started", "In Progress", "Done"]
+EstimatedTime = Literal["10 min", "20 min", "30 min", "1 hour", "2 hours+"]
+DEADLINE_PATTERN = re.compile(
+    r"\d{4}-\d{2}-\d{2}"
+    r"(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d{1,6})?)?"
+    r"(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)?)?"
+)
+
+
+def parse_deadline(value):
+    """Interpret date-only values at 23:59:59.999999 Hong Kong time.
+
+    Naive date-times are local time. Stored strings are never rewritten.
+    """
+    if not value:
+        return None
+    try:
+        deadline = datetime.fromisoformat(value)
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+            deadline = deadline.replace(hour=23, minute=59, second=59, microsecond=999999)
+        if deadline.tzinfo is None:
+            return deadline.replace(tzinfo=LOCAL_TIMEZONE)
+        return deadline.astimezone(LOCAL_TIMEZONE)
+    except (TypeError, ValueError, OverflowError):
+        # Legacy invalid deadlines must not prevent reading the remaining tasks.
+        return None
+
+
+def validate_deadline(value):
+    if not DEADLINE_PATTERN.fullmatch(value) or parse_deadline(value) is None:
+        raise ValueError(
+            "Deadline must be an ISO date (YYYY-MM-DD) or date-time "
+            "(YYYY-MM-DDTHH:MM[:SS[.ffffff]], optionally Z or +/-HH:MM); "
+            "use null to clear it"
+        )
+    return value
+
+
+Deadline = Annotated[str, AfterValidator(validate_deadline)]
+
+
+def deadline_sort_key(task):
+    deadline = parse_deadline(task["deadline"])
+    return (
+        deadline is None,
+        deadline or datetime.max.replace(tzinfo=LOCAL_TIMEZONE),
+        task["id"],
+    )
 
 
 class TaskCreate(BaseModel):
     title: str
     description: Optional[str] = None
-    deadline: Optional[str] = None
-    priority: str = "Medium"
+    deadline: Optional[Deadline] = None
+    priority: Priority = "Medium"
     category: Optional[str] = None
-    estimated_time: Optional[str] = None
+    estimated_time: Optional[EstimatedTime] = None
     is_today: bool = False
 
 
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
-    deadline: Optional[str] = None
-    priority: Optional[str] = None
+    deadline: Optional[Deadline] = None
+    priority: Optional[Priority] = None
     category: Optional[str] = None
-    estimated_time: Optional[str] = None
-    status: Optional[str] = None
+    estimated_time: Optional[EstimatedTime] = None
+    status: Optional[TaskStatus] = None
     is_today: Optional[bool] = None
+
+    @field_validator("title", "is_today", "priority", "status")
+    @classmethod
+    def reject_explicit_null(cls, value):
+        if value is None:
+            raise ValueError("Omit this field to keep its value; null is not allowed")
+        return value
 
 
 def get_db():
@@ -53,19 +112,9 @@ def row_to_task(row):
     }
 
 
-def parse_deadline(value):
-    if not value:
-        return None
-
-    try:
-        return datetime.fromisoformat(value)
-    except ValueError:
-        return None
-
-
 @app.get("/tasks")
 def get_tasks(
-    status: Optional[str] = Query(None),
+    status: Optional[TaskStatus] = Query(None),
     category: Optional[str] = Query(None),
     sort: str = Query("deadline")
 ):
@@ -88,36 +137,25 @@ def get_tasks(
         query += " AND category = ?"
         params.append(category)
 
-    if sort == "priority":
-        query += """
-            ORDER BY
-                CASE priority
-                    WHEN 'High' THEN 1
-                    WHEN 'Medium' THEN 2
-                    WHEN 'Low' THEN 3
-                    ELSE 4
-                END,
-                deadline ASC
-        """
-    else:
-        query += """
-            ORDER BY
-                CASE WHEN deadline IS NULL OR deadline = '' THEN 1 ELSE 0 END,
-                deadline ASC,
-                id ASC
-        """
-
     rows = conn.execute(query, params).fetchall()
     conn.close()
 
-    return [row_to_task(row) for row in rows]
+    tasks = [row_to_task(row) for row in rows]
+    if sort == "priority":
+        priority_order = {"High": 1, "Medium": 2, "Low": 3}
+        tasks.sort(key=lambda task: (
+            priority_order.get(task["priority"], 4), deadline_sort_key(task)
+        ))
+    else:
+        tasks.sort(key=deadline_sort_key)
+    return tasks
 
 
 @app.post("/tasks")
 def add_task(task: TaskCreate):
     conn = get_db()
 
-    now = datetime.now().isoformat(timespec="seconds")
+    now = datetime.now(LOCAL_TIMEZONE).isoformat(timespec="seconds")
 
     cursor = conn.execute("""
         INSERT INTO tasks (
@@ -183,10 +221,10 @@ def update_task(task_id: int, update: TaskUpdate):
             values[key] = int(value) if key == "is_today" else value
 
     if data.get("status") == "In Progress" and not values.get("started_at"):
-        values["started_at"] = datetime.now().isoformat(timespec="seconds")
+        values["started_at"] = datetime.now(LOCAL_TIMEZONE).isoformat(timespec="seconds")
 
     if data.get("status") == "Done":
-        values["completed_at"] = datetime.now().isoformat(timespec="seconds")
+        values["completed_at"] = datetime.now(LOCAL_TIMEZONE).isoformat(timespec="seconds")
 
     conn.execute("""
         UPDATE tasks
@@ -262,7 +300,7 @@ def get_today_tasks():
 
     conn.close()
 
-    now = datetime.now()
+    now = datetime.now(LOCAL_TIMEZONE)
     today = now.date()
     tomorrow = today + timedelta(days=1)
 
@@ -290,12 +328,7 @@ def get_today_tasks():
         if include:
             result.append(task)
 
-    result.sort(
-        key=lambda t: (
-            parse_deadline(t["deadline"]) is None,
-            parse_deadline(t["deadline"]) or datetime.max
-        )
-    )
+    result.sort(key=deadline_sort_key)
 
     return result
 
@@ -334,7 +367,7 @@ def get_recommendation(
 
     conn.close()
 
-    now = datetime.now()
+    now = datetime.now(LOCAL_TIMEZONE)
     today = now.date()
     tomorrow = today + timedelta(days=1)
 
