@@ -5,8 +5,18 @@ import re
 import sqlite3
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
+from contextlib import asynccontextmanager
+import sidequests
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app):
+    sidequests.initialize_database(DB_FILE)
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
+app.include_router(sidequests.create_router(lambda: DB_FILE))
 
 DB_FILE = "/opt/focus/tasks.db"
 LOCAL_TIMEZONE = ZoneInfo("Asia/Hong_Kong")

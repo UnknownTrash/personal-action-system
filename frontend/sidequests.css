@@ -1,0 +1,27 @@
+/* Side Quest styles are scoped to preserve the existing Todo layout. */
+.sq-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.sq-heading h2 { margin: 0; }
+.sq-muted { color: #666; font-size: 13px; }
+.sq-progress { font-size: 18px; font-weight: bold; }
+.sq-xp { background: #e8f7ec; color: #27643b; white-space: nowrap; }
+.sq-row { display: flex; align-items: flex-start; gap: 12px; }
+.sq-row input[type="checkbox"] { width: 20px; height: 20px; margin: 2px 0 0; flex-shrink: 0; cursor: pointer; }
+.sq-content { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.sq-content h3 { margin: 0 0 6px; font-size: 17px; }
+.sq-done .sq-content h3 { color: #607164; }
+.sq-description { color: #555; white-space: pre-wrap; margin: 6px 0 10px; }
+.sq-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.sq-actions .btn + .btn { margin-left: 0; }
+.sq-compact .sq-row { padding: 10px 0; border-bottom: 1px solid #eee; }
+.sq-compact .sq-row:last-child { border-bottom: 0; }
+.sq-compact .sq-content h3 { font-size: 14px; margin-bottom: 0; }
+.sq-week-row { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid #eee; overflow-wrap: anywhere; }
+.sq-week-row:last-child { border-bottom: 0; }
+.sq-error { color: #a32929; font-size: 14px; }
+.sq-error:empty { display: none; }
+#sidequestsPage summary { cursor: pointer; font-weight: bold; }
+.sq-weekdays { display: flex; flex-wrap: wrap; gap: 12px; border: 1px solid #d9dde3; border-radius: 8px; margin: 0 0 16px; padding: 12px; }
+.sq-weekdays.hidden { display: none; }
+.sq-weekdays label, .sq-active { display: inline-flex; align-items: center; gap: 6px; }
+.sq-weekdays input[type="checkbox"], .sq-active input[type="checkbox"] { width: 18px; height: 18px; margin: 0; }
+.sq-action:disabled { opacity: .6; cursor: wait; }

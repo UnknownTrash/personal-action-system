@@ -1,0 +1,1606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Todo App</title>
+    <link rel="stylesheet" href="/sidequests.css">
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            color: #222;
+        }
+
+        .app {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 220px;
+            background: #ffffff;
+            border-right: 1px solid #e5e7eb;
+            padding: 24px 18px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+        }
+
+        .logo {
+            font-size: 22px;
+            font-weight: bold;
+            margin-bottom: 28px;
+        }
+
+        .nav-btn {
+            width: 100%;
+            text-align: left;
+            border: none;
+            background: transparent;
+            padding: 12px 14px;
+            margin-bottom: 6px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+        }
+
+        .nav-btn:hover {
+            background: #f0f2f5;
+        }
+
+        .nav-btn.active {
+            background: #e8eefc;
+            font-weight: bold;
+        }
+
+        .main {
+            margin-left: 220px;
+            width: calc(100% - 220px);
+            padding: 32px;
+        }
+
+        .page-header {
+            margin-bottom: 24px;
+        }
+
+        .page-header h1 {
+            margin: 0 0 6px 0;
+            font-size: 30px;
+        }
+
+        .page-header p {
+            margin: 0;
+            color: #666;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 14px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.06);
+        }
+
+        .card h2 {
+            margin-top: 0;
+        }
+
+        .recommend-card {
+            border-left: 5px solid #4f46e5;
+        }
+
+        .task {
+            background: #fff;
+            border: 1px solid #ececec;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .task-title {
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .task-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 8px 0 12px 0;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 9px;
+            border-radius: 999px;
+            font-size: 12px;
+            background: #eef0f3;
+        }
+
+        .priority-high {
+            background: #ffe4e6;
+        }
+
+        .priority-medium {
+            background: #fff4cc;
+        }
+
+        .priority-low {
+            background: #e8f7ec;
+        }
+
+        .status-progress {
+            background: #e6f0ff;
+        }
+
+        .status-done {
+            background: #e7f6ea;
+        }
+
+        .overdue {
+            display: inline-block;
+            margin-top: 6px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            background: #ffe3e3;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 8px;
+            padding: 9px 13px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: #222;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #eef0f3;
+        }
+
+        .btn-danger {
+            background: #f8e1e1;
+        }
+
+        .btn + .btn {
+            margin-left: 6px;
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d9dde3;
+            border-radius: 8px;
+            margin-top: 6px;
+            margin-bottom: 14px;
+            font-size: 14px;
+            background: white;
+        }
+
+        textarea {
+            min-height: 90px;
+            resize: vertical;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .filters {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr auto;
+            gap: 10px;
+            align-items: end;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .timeline-day {
+            margin-bottom: 28px;
+        }
+
+        .timeline-day h3 {
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .timeline-item {
+            display: flex;
+            gap: 18px;
+            padding: 14px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .timeline-time {
+            width: 80px;
+            font-weight: bold;
+            color: #555;
+            flex-shrink: 0;
+        }
+
+        .timeline-content {
+            flex: 1;
+        }
+
+        .empty {
+            color: #777;
+            padding: 12px 0;
+        }
+
+        @media (max-width: 800px) {
+            .sidebar {
+                position: static;
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid #e5e7eb;
+            }
+
+            .app {
+                display: block;
+            }
+
+            .main {
+                margin-left: 0;
+                width: 100%;
+                padding: 20px;
+            }
+
+            .form-grid,
+            .filters {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal {
+            width: 100%;
+            max-width: 620px;
+            max-height: 90vh;
+            overflow-y: auto;
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+        }
+
+        .modal-close {
+            border: none;
+            background: transparent;
+            font-size: 26px;
+            cursor: pointer;
+            color: #777;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 8px 0 16px;
+        }
+
+        .checkbox-row input {
+            width: auto;
+            margin: 0;
+        }
+
+
+        .today-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        @media (max-width: 600px) {
+            .today-header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+        }
+
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.05);
+        }
+
+        .stat-number {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: #777;
+        }
+
+        @media (max-width: 600px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+
+        .stat-card.overdue-alert {
+            background: #fff1f2;
+            border: 1px solid #fecdd3;
+        }
+
+        .stat-card.overdue-alert .stat-number {
+            color: #dc2626;
+        }
+
+        .stat-card.overdue-alert .stat-label {
+            color: #b91c1c;
+            font-weight: 600;
+        }
+
+
+        .today-section {
+            margin-bottom: 28px;
+        }
+
+        .today-section h3 {
+            margin: 0 0 12px 0;
+            font-size: 16px;
+            color: #444;
+        }
+
+        .today-section-overdue h3 {
+            color: #b91c1c;
+        }
+
+        .today-section-overdue {
+            border-left: 4px solid #ef4444;
+            padding-left: 14px;
+        }
+
+
+        .today-section {
+            border-radius: 12px;
+            padding: 14px;
+        }
+
+        .today-section-overdue {
+            background: #fff1f2;
+            border-left: 4px solid #ef4444;
+        }
+
+        .today-section-overdue h3 {
+            color: #b91c1c;
+        }
+
+        .today-section-progress {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .today-section-progress h3 {
+            color: #1d4ed8;
+        }
+
+        .today-section-due {
+            background: #fffbeb;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .today-section-due h3 {
+            color: #b45309;
+        }
+
+        .today-section-added {
+            background: #f8fafc;
+            border-left: 4px solid #94a3b8;
+        }
+
+        .today-section-added h3 {
+            color: #475569;
+        }
+
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+    <aside class="sidebar">
+        <div class="logo">Todo</div>
+
+        <button class="nav-btn active" id="nav-today" onclick="showPage('today')">
+            Today
+        </button>
+
+        <button class="nav-btn" id="nav-all" onclick="showPage('all')">
+            All Tasks
+        </button>
+
+        <button class="nav-btn" id="nav-deadlines" onclick="showPage('deadlines')">
+            Deadlines
+        </button>
+
+        <button class="nav-btn" id="nav-completed" onclick="showPage('completed')">
+            Completed
+        </button>
+        <button class="nav-btn" id="nav-sidequests" onclick="showPage('sidequests')">
+            Side Quests
+        </button>
+    </aside>
+
+    <main class="main">
+
+        <section id="todayPage">
+
+            <div class="page-header today-header">
+                <div>
+                    <h1>Today</h1>
+                    <p>Focus on what matters most.</p>
+                </div>
+
+                <button class="btn btn-primary" onclick="openAddModal()">
+                    + New Task
+                </button>
+            </div>
+
+            <div class="stats-grid">
+
+                <div class="stat-card">
+                    <div class="stat-number" id="todayCount">0</div>
+                    <div class="stat-label">Tasks Today</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-number" id="overdueCount">0</div>
+                    <div class="stat-label">Overdue</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-number" id="progressCount">0</div>
+                    <div class="stat-label">In Progress</div>
+                </div>
+
+            </div>
+
+            <div class="card recommend-card">
+                <h2>What should I do now?</h2>
+
+                <button class="btn btn-primary" onclick="loadRecommendation()">
+                    Recommend a Task
+                </button>
+
+                <div id="recommendationBox"></div>
+            </div>
+
+            <div class="card">
+                <h2>Today's Tasks</h2>
+                <div id="todayTasks"></div>
+            </div>
+
+            <div class="card sq-compact">
+                <div class="sq-heading">
+                    <h2>Side Quests</h2>
+                    <button class="btn btn-secondary" onclick="showPage('sidequests')">View all</button>
+                </div>
+                <p id="sqCompactProgress" class="sq-muted" aria-live="polite">Loading Side Quests…</p>
+                <div id="sqCompactList"></div>
+                <p class="sq-error" id="sqCompactError" role="alert"></p>
+            </div>
+
+        </section>
+
+        <section id="allPage" class="hidden">
+
+            <div class="page-header">
+                <h1>All Tasks</h1>
+                <p>Create, organize, and manage your tasks.</p>
+            </div>
+
+            <div class="card">
+                <button class="btn btn-primary" onclick="openAddModal()">
+                    + New Task
+                </button>
+            </div>
+
+            <div class="card">
+                <h2>Task List</h2>
+
+                <div class="filters">
+
+                    <div>
+                        <label>Sort</label>
+                        <select id="sortInput" onchange="loadAllTasks()">
+                            <option value="deadline">Deadline</option>
+                            <option value="priority">Priority</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label>Status</label>
+                        <select id="statusFilter" onchange="loadAllTasks()">
+                            <option value="">All</option>
+                            <option>Not Started</option>
+                            <option>In Progress</option>
+                            <option>Done</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label>Category</label>
+                        <input id="categoryFilter" placeholder="Filter category">
+                    </div>
+
+                    <button class="btn btn-secondary" onclick="loadAllTasks()">
+                        Apply
+                    </button>
+
+                </div>
+
+                <div id="allTasks"></div>
+            </div>
+
+        </section>
+
+        <section id="deadlinesPage" class="hidden">
+
+            <div class="page-header">
+                <h1>Deadlines</h1>
+                <p>See what is coming up.</p>
+            </div>
+
+            <div class="card">
+                <div id="deadlineTasks"></div>
+            </div>
+
+        </section>
+
+        <section id="completedPage" class="hidden">
+
+            <div class="page-header">
+                <h1>Completed</h1>
+                <p>Everything you've finished.</p>
+            </div>
+
+            <div class="card">
+                <div id="completedTasks"></div>
+            </div>
+
+        </section>
+
+        <section id="sidequestsPage" class="hidden">
+            <div class="page-header today-header">
+                <div>
+                    <h1>Side Quests</h1>
+                    <p>Small habits, a little progress every day.</p>
+                </div>
+                <button class="btn btn-primary" onclick="sqOpenModal()">+ New Side Quest</button>
+            </div>
+            <p id="sqPageError" class="sq-error" role="alert"></p>
+            <div class="card">
+                <div class="sq-heading"><h2>Today</h2><span class="sq-muted" id="sqLocalDate"></span></div>
+                <p class="sq-progress" id="sqTodayProgress" aria-live="polite">Loading…</p>
+                <div id="sqTodayList"></div>
+            </div>
+            <div class="card">
+                <h2>This Week</h2>
+                <p class="sq-progress" id="sqWeekProgress" aria-live="polite">Loading…</p>
+                <p class="sq-muted" id="sqWeekDates"></p>
+                <div id="sqWeekList"></div>
+            </div>
+            <details class="card">
+                <summary>Manage all Side Quests <span class="sq-muted" id="sqManageCount"></span></summary>
+                <p class="sq-muted">Edit schedules, deactivate quests, or reactivate them. Completion history is kept.</p>
+                <div id="sqManageList"></div>
+            </details>
+        </section>
+    </main>
+</div>
+
+
+
+<div id="addModal" class="modal-overlay" onclick="handleAddModalBackground(event)">
+    <div class="modal">
+
+        <div class="modal-header">
+            <h2>New Task</h2>
+            <button class="modal-close" onclick="closeAddModal()">&times;</button>
+        </div>
+
+        <label>Title</label>
+        <input id="addTitle" placeholder="What do you need to do?">
+
+        <label>Description</label>
+        <textarea id="addDescription" placeholder="Optional details"></textarea>
+
+        <div class="form-grid">
+
+            <div>
+                <label>Deadline Date</label>
+                <input id="addDeadlineDate" type="date">
+            </div>
+
+            <div>
+                <label>Deadline Time</label>
+                <input id="addDeadlineTime" type="time">
+            </div>
+
+            <div>
+                <label>Priority</label>
+                <select id="addPriority">
+                    <option>High</option>
+                    <option selected>Medium</option>
+                    <option>Low</option>
+                </select>
+            </div>
+
+            <div>
+                <label>Category</label>
+                <input id="addCategory" placeholder="Study, Work, Fitness...">
+            </div>
+
+            <div>
+                <label>Estimated Time</label>
+                <select id="addEstimatedTime">
+                    <option value="">Not set</option>
+                    <option>10 min</option>
+                    <option>20 min</option>
+                    <option>30 min</option>
+                    <option>1 hour</option>
+                    <option>2 hours+</option>
+                </select>
+            </div>
+
+        </div>
+
+        <label class="checkbox-row">
+            <input id="addIsToday" type="checkbox">
+            Add to Today
+        </label>
+
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeAddModal()">
+                Cancel
+            </button>
+
+            <button class="btn btn-primary" onclick="createTask()">
+                Create Task
+            </button>
+        </div>
+
+    </div>
+</div>
+
+<div id="editModal" class="modal-overlay" onclick="handleModalBackground(event)">
+    <div class="modal">
+
+        <div class="modal-header">
+            <h2>Edit Task</h2>
+            <button class="modal-close" onclick="closeEditModal()">&times;</button>
+        </div>
+
+        <label>Title</label>
+        <input id="editTitle">
+
+        <label>Description</label>
+        <textarea id="editDescription"></textarea>
+
+        <div class="form-grid">
+
+            <div>
+                <label>Deadline Date</label>
+                <input id="editDeadlineDate" type="date">
+            </div>
+
+            <div>
+                <label>Deadline Time</label>
+                <input id="editDeadlineTime" type="time">
+            </div>
+
+            <div>
+                <label>Priority</label>
+                <select id="editPriority">
+                    <option>High</option>
+                    <option>Medium</option>
+                    <option>Low</option>
+                </select>
+            </div>
+
+            <div>
+                <label>Category</label>
+                <input id="editCategory">
+            </div>
+
+            <div>
+                <label>Estimated Time</label>
+                <select id="editEstimatedTime">
+                    <option value="">Not set</option>
+                    <option>10 min</option>
+                    <option>20 min</option>
+                    <option>30 min</option>
+                    <option>1 hour</option>
+                    <option>2 hours+</option>
+                </select>
+            </div>
+
+            <div>
+                <label>Status</label>
+                <select id="editStatus">
+                    <option>Not Started</option>
+                    <option>In Progress</option>
+                    <option>Done</option>
+                </select>
+            </div>
+
+        </div>
+
+        <label class="checkbox-row">
+            <input id="editIsToday" type="checkbox">
+            Add to Today
+        </label>
+
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeEditModal()">
+                Cancel
+            </button>
+
+            <button class="btn btn-primary" onclick="saveTaskEdit()">
+                Save Changes
+            </button>
+        </div>
+
+    </div>
+</div>
+
+<div id="sqModal" class="modal-overlay" onclick="if (event.target === this) sqCloseModal()">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="sqModalTitle">
+        <div class="modal-header">
+            <h2 id="sqModalTitle">New Side Quest</h2>
+            <button class="modal-close sq-action" type="button" aria-label="Close" onclick="sqCloseModal()">&times;</button>
+        </div>
+        <form id="sqForm" onsubmit="sqSave(event)">
+            <label for="sqTitle">Title</label>
+            <input id="sqTitle" required placeholder="Cook a proper meal">
+            <label for="sqDescription">Description</label>
+            <textarea id="sqDescription" placeholder="Optional details"></textarea>
+            <div class="form-grid">
+                <div><label for="sqXP">XP</label>
+                    <input id="sqXP" type="number" min="1" max="1000" step="1" value="10" required></div>
+                <div><label for="sqSchedule">Schedule</label>
+                    <select id="sqSchedule" onchange="sqScheduleChanged()">
+                        <option value="Daily">Every day</option>
+                        <option value="Weekly">Specific days</option>
+                    </select></div>
+            </div>
+            <fieldset id="sqWeekdays" class="sq-weekdays hidden" disabled>
+                <legend>Choose at least one day</legend>
+                <label><input type="checkbox" name="sqWeekday" value="Mon"> Mon</label>
+                <label><input type="checkbox" name="sqWeekday" value="Tue"> Tue</label>
+                <label><input type="checkbox" name="sqWeekday" value="Wed"> Wed</label>
+                <label><input type="checkbox" name="sqWeekday" value="Thu"> Thu</label>
+                <label><input type="checkbox" name="sqWeekday" value="Fri"> Fri</label>
+                <label><input type="checkbox" name="sqWeekday" value="Sat"> Sat</label>
+                <label><input type="checkbox" name="sqWeekday" value="Sun"> Sun</label>
+            </fieldset>
+            <label class="sq-active"><input id="sqActive" type="checkbox" checked> Active</label>
+            <p id="sqFormError" class="sq-error" role="alert"></p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary sq-action" type="button" onclick="sqCloseModal()">Cancel</button>
+                <button class="btn btn-primary sq-action" id="sqSaveButton" type="submit">Create Side Quest</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script src="/sidequests.js"></script>
+<script>
+
+let currentRecommendationId = null;
+
+function showPage(page) {
+
+    const pages = ['today', 'all', 'deadlines', 'completed', 'sidequests'];
+
+    for (const p of pages) {
+        document.getElementById(p + 'Page').classList.add('hidden');
+        document.getElementById('nav-' + p).classList.remove('active');
+    }
+
+    document.getElementById(page + 'Page').classList.remove('hidden');
+    document.getElementById('nav-' + page).classList.add('active');
+
+    if (page === 'today') loadToday();
+    if (page === 'all') loadAllTasks();
+    if (page === 'deadlines') loadDeadlines();
+    if (page === 'completed') loadCompleted();
+    if (page === 'sidequests') loadSideQuests();
+}
+
+
+function formatDeadline(deadline) {
+
+    if (!deadline) return 'No deadline';
+
+    const d = new Date(deadline);
+
+    if (isNaN(d)) return deadline;
+
+    return d.toLocaleString([], {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+
+function isOverdue(task) {
+
+    if (!task.deadline || task.status === 'Done') return false;
+
+    return new Date(task.deadline) < new Date();
+}
+
+
+function priorityClass(priority) {
+
+    if (priority === 'High') return 'priority-high';
+    if (priority === 'Low') return 'priority-low';
+
+    return 'priority-medium';
+}
+
+
+function statusClass(status) {
+
+    if (status === 'In Progress') return 'status-progress';
+    if (status === 'Done') return 'status-done';
+
+    return '';
+}
+
+
+function taskHtml(task) {
+
+    const overdue = isOverdue(task);
+
+    return `
+        <div class="task">
+
+            <div class="task-title">
+                ${task.title}
+            </div>
+
+            ${overdue
+                ? '<div class="overdue">OVERDUE</div>'
+                : ''
+            }
+
+            <div class="task-meta">
+
+                <span class="badge ${priorityClass(task.priority)}">
+                    ${task.priority || 'Medium'}
+                </span>
+
+                <span class="badge ${statusClass(task.status)}">
+                    ${task.status}
+                </span>
+
+                ${task.category
+                    ? `<span class="badge">${task.category}</span>`
+                    : ''
+                }
+
+                ${task.estimated_time
+                    ? `<span class="badge">${task.estimated_time}</span>`
+                    : ''
+                }
+
+            </div>
+
+            <div class="meta">
+                Due: ${formatDeadline(task.deadline)}
+            </div>
+
+            ${task.description
+                ? `<p>${task.description}</p>`
+                : ''
+            }
+
+            ${task.status !== 'In Progress' && task.status !== 'Done'
+                ? `<button class="btn btn-secondary"
+                    onclick="startTask(${task.id})">
+                    Start
+                   </button>`
+                : ''
+            }
+
+            ${task.status !== 'Done'
+                ? `<button class="btn btn-primary"
+                    onclick="completeTask(${task.id})">
+                    ✓ Complete
+                   </button>`
+                : ''
+            }
+
+            <button class="btn btn-secondary"
+                onclick="editTask(${task.id})">
+                Edit
+            </button>
+
+            <button class="btn btn-danger"
+                onclick="deleteTask(${task.id})">
+                Delete
+            </button>
+
+        </div>
+    `;
+}
+
+
+
+function openAddModal() {
+
+    document.getElementById('addTitle').value = '';
+    document.getElementById('addDescription').value = '';
+    document.getElementById('addDeadlineDate').value = '';
+    document.getElementById('addDeadlineTime').value = '';
+    document.getElementById('addPriority').value = 'Medium';
+    document.getElementById('addCategory').value = '';
+    document.getElementById('addEstimatedTime').value = '';
+    document.getElementById('addIsToday').checked = false;
+
+    document.getElementById('addModal').classList.add('show');
+
+    setTimeout(() => {
+        document.getElementById('addTitle').focus();
+    }, 50);
+}
+
+
+function closeAddModal() {
+
+    document.getElementById('addModal').classList.remove('show');
+}
+
+
+function handleAddModalBackground(event) {
+
+    if (event.target.id === 'addModal') {
+        closeAddModal();
+    }
+}
+
+
+async function createTask() {
+
+    const title =
+        document.getElementById('addTitle').value.trim();
+
+    if (!title) {
+        alert('Please enter a title');
+        return;
+    }
+
+    const date =
+        document.getElementById('addDeadlineDate').value;
+
+    const time =
+        document.getElementById('addDeadlineTime').value;
+
+    let deadline = null;
+
+    if (date && time) {
+        deadline = `${date}T${time}:00`;
+    } else if (date) {
+        deadline = `${date}T23:59:00`;
+    }
+
+    const body = {
+        title: title,
+
+        description:
+            document.getElementById('addDescription').value.trim() || null,
+
+        deadline: deadline,
+
+        priority:
+            document.getElementById('addPriority').value,
+
+        category:
+            document.getElementById('addCategory').value.trim() || null,
+
+        estimated_time:
+            document.getElementById('addEstimatedTime').value || null,
+
+        is_today:
+            document.getElementById('addIsToday').checked
+    };
+
+    const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+    });
+
+    if (!res.ok) {
+        alert('Failed to create task');
+        return;
+    }
+
+    closeAddModal();
+    loadAllTasks();
+    loadToday();
+    loadDeadlines();
+}
+
+
+async function loadAllTasks() {
+
+    const sort = document.getElementById('sortInput').value;
+    const status = document.getElementById('statusFilter').value;
+    const category = document.getElementById('categoryFilter').value.trim();
+
+    let url = `/api/tasks?sort=${encodeURIComponent(sort)}`;
+
+    if (status) {
+        url += `&status=${encodeURIComponent(status)}`;
+    }
+
+    if (category) {
+        url += `&category=${encodeURIComponent(category)}`;
+    }
+
+    const res = await fetch(url);
+    const tasks = await res.json();
+
+    document.getElementById('allTasks').innerHTML =
+        tasks.length
+        ? tasks.map(taskHtml).join('')
+        : '<div class="empty">No tasks found.</div>';
+}
+
+
+
+
+async function loadToday() {
+
+    loadSideQuests();
+
+    const res = await fetch('/api/tasks/today');
+    const tasks = await res.json();
+
+    const now = new Date();
+
+    const todayStart = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate()
+    );
+
+    const tomorrowStart = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() + 1
+    );
+
+    const overdue = [];
+    const inProgress = [];
+    const dueToday = [];
+    const addedToday = [];
+
+    for (const task of tasks) {
+
+        const deadline = task.deadline
+            ? new Date(task.deadline)
+            : null;
+
+        if (
+            task.status !== 'Done' &&
+            deadline &&
+            deadline < now
+        ) {
+            overdue.push(task);
+            continue;
+        }
+
+        if (task.status === 'In Progress') {
+            inProgress.push(task);
+            continue;
+        }
+
+        if (
+            deadline &&
+            deadline >= todayStart &&
+            deadline < tomorrowStart
+        ) {
+            dueToday.push(task);
+            continue;
+        }
+
+        if (task.is_today) {
+            addedToday.push(task);
+            continue;
+        }
+    }
+
+    document.getElementById('todayCount').innerText =
+        tasks.length;
+
+    document.getElementById('overdueCount').innerText =
+        overdue.length;
+
+    document.getElementById('progressCount').innerText =
+        inProgress.length;
+
+    const overdueCard =
+        document.getElementById('overdueCount').closest('.stat-card');
+
+    if (overdue.length > 0) {
+        overdueCard.classList.add('overdue-alert');
+    } else {
+        overdueCard.classList.remove('overdue-alert');
+    }
+
+    function sectionHtml(title, items, extraClass = '') {
+
+        if (!items.length) return '';
+
+        return `
+            <div class="today-section ${extraClass}">
+                <h3>${title}</h3>
+                ${items.map(taskHtml).join('')}
+            </div>
+        `;
+    }
+
+    let html = '';
+
+    html += sectionHtml(
+        `Overdue (${overdue.length})`,
+        overdue,
+        'today-section-overdue'
+    );
+
+    html += sectionHtml(
+        `In Progress (${inProgress.length})`,
+        inProgress,
+        'today-section-progress'
+    );
+
+    html += sectionHtml(
+        `Due Today (${dueToday.length})`,
+        dueToday,
+        'today-section-due'
+    );
+
+    html += sectionHtml(
+        `Added to Today (${addedToday.length})`,
+        addedToday,
+        'today-section-added'
+    );
+
+    document.getElementById('todayTasks').innerHTML =
+        html || '<div class="empty">Nothing urgent today.</div>';
+}
+
+
+async function loadCompleted() {
+
+    const res = await fetch('/api/tasks/completed');
+    const tasks = await res.json();
+
+    document.getElementById('completedTasks').innerHTML =
+        tasks.length
+        ? tasks.map(taskHtml).join('')
+        : '<div class="empty">No completed tasks yet.</div>';
+}
+
+
+async function loadDeadlines() {
+
+    const res = await fetch('/api/tasks?sort=deadline');
+    const tasks = await res.json();
+
+    const active = tasks.filter(
+        task => task.status !== 'Done' && task.deadline
+    );
+
+    const container = document.getElementById('deadlineTasks');
+
+    if (!active.length) {
+        container.innerHTML = '<div class="empty">No upcoming deadlines.</div>';
+        return;
+    }
+
+    const groups = {};
+
+    for (const task of active) {
+
+        const d = new Date(task.deadline);
+        const dateKey = d.toISOString().split('T')[0];
+
+        if (!groups[dateKey]) {
+            groups[dateKey] = [];
+        }
+
+        groups[dateKey].push(task);
+    }
+
+    let html = '';
+
+    for (const dateKey of Object.keys(groups).sort()) {
+
+        const date = new Date(dateKey + 'T00:00:00');
+
+        const dateLabel = date.toLocaleDateString(undefined, {
+            month: 'short',
+            day: 'numeric',
+            weekday: 'short'
+        });
+
+        html += `
+            <div class="timeline-day">
+                <h3>${dateLabel}</h3>
+        `;
+
+        for (const task of groups[dateKey]) {
+
+            const d = new Date(task.deadline);
+
+            const time = d.toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            html += `
+                <div class="timeline-item">
+
+                    <div class="timeline-time">
+                        ${time}
+                    </div>
+
+                    <div class="timeline-content">
+                        ${taskHtml(task)}
+                    </div>
+
+                </div>
+            `;
+        }
+
+        html += '</div>';
+    }
+
+    container.innerHTML = html;
+}
+
+
+async function startTask(id) {
+
+    await fetch(`/api/tasks/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            status: 'In Progress'
+        })
+    });
+
+    refreshCurrentViews();
+}
+
+
+async function completeTask(id) {
+
+    await fetch(`/api/tasks/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            status: 'Done'
+        })
+    });
+
+    refreshCurrentViews();
+}
+
+
+
+
+let editingTaskId = null;
+
+
+async function editTask(id) {
+
+    const res = await fetch('/api/tasks');
+    const tasks = await res.json();
+
+    const task = tasks.find(t => t.id === id);
+
+    if (!task) {
+        alert('Task not found');
+        return;
+    }
+
+    editingTaskId = id;
+
+    document.getElementById('editTitle').value =
+        task.title || '';
+
+    document.getElementById('editDescription').value =
+        task.description || '';
+
+    document.getElementById('editPriority').value =
+        task.priority || 'Medium';
+
+    document.getElementById('editCategory').value =
+        task.category || '';
+
+    document.getElementById('editEstimatedTime').value =
+        task.estimated_time || '';
+
+    document.getElementById('editStatus').value =
+        task.status || 'Not Started';
+
+    document.getElementById('editIsToday').checked =
+        task.is_today === true;
+
+    document.getElementById('editDeadlineDate').value = '';
+    document.getElementById('editDeadlineTime').value = '';
+
+    if (task.deadline) {
+
+        const deadlineParts = task.deadline.split('T');
+
+        document.getElementById('editDeadlineDate').value =
+            deadlineParts[0] || '';
+
+        if (deadlineParts[1]) {
+            document.getElementById('editDeadlineTime').value =
+                deadlineParts[1].slice(0, 5);
+        }
+    }
+
+    document.getElementById('editModal').classList.add('show');
+}
+
+
+function closeEditModal() {
+
+    document.getElementById('editModal').classList.remove('show');
+    editingTaskId = null;
+}
+
+
+function handleModalBackground(event) {
+
+    if (event.target.id === 'editModal') {
+        closeEditModal();
+    }
+}
+
+
+async function saveTaskEdit() {
+
+    if (editingTaskId === null) return;
+
+    const title =
+        document.getElementById('editTitle').value.trim();
+
+    if (!title) {
+        alert('Title cannot be empty');
+        return;
+    }
+
+    const date =
+        document.getElementById('editDeadlineDate').value;
+
+    const time =
+        document.getElementById('editDeadlineTime').value;
+
+    let deadline = null;
+
+    if (date && time) {
+        deadline = `${date}T${time}:00`;
+    } else if (date) {
+        deadline = `${date}T23:59:00`;
+    }
+
+    const body = {
+        title: title,
+
+        description:
+            document.getElementById('editDescription').value.trim() || null,
+
+        deadline: deadline,
+
+        priority:
+            document.getElementById('editPriority').value,
+
+        category:
+            document.getElementById('editCategory').value.trim() || null,
+
+        estimated_time:
+            document.getElementById('editEstimatedTime').value || null,
+
+        status:
+            document.getElementById('editStatus').value,
+
+        is_today:
+            document.getElementById('editIsToday').checked
+    };
+
+    const res = await fetch(`/api/tasks/${editingTaskId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+    });
+
+    if (!res.ok) {
+        alert('Failed to update task');
+        return;
+    }
+
+    closeEditModal();
+    refreshCurrentViews();
+}
+
+
+async function deleteTask(id) {
+
+    if (!confirm('Delete this task?')) return;
+
+    await fetch(`/api/tasks/${id}`, {
+        method: 'DELETE'
+    });
+
+    refreshCurrentViews();
+}
+
+
+async function loadRecommendation(skipCurrent = false) {
+
+    let url = '/api/recommendation';
+
+    if (skipCurrent && currentRecommendationId !== null) {
+        url += `?exclude_id=${currentRecommendationId}`;
+    }
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    const box = document.getElementById('recommendationBox');
+
+    if (!data.task) {
+        box.innerHTML = '<div class="empty">No other active tasks available.</div>';
+        currentRecommendationId = null;
+        return;
+    }
+
+    const task = data.task;
+    currentRecommendationId = task.id;
+
+    box.innerHTML = `
+        <div class="task" style="margin-top:16px;">
+
+            <div class="task-title">
+                ${task.title}
+            </div>
+
+            <div class="task-meta">
+
+                <span class="badge ${priorityClass(task.priority)}">
+                    ${task.priority}
+                </span>
+
+                ${task.estimated_time
+                    ? `<span class="badge">${task.estimated_time}</span>`
+                    : ''
+                }
+
+            </div>
+
+            <div class="meta">
+                Due: ${formatDeadline(task.deadline)}
+            </div>
+
+            <div style="margin-top:12px;">
+                <button class="btn btn-primary"
+                    onclick="startTask(${task.id})">
+                    Start
+                </button>
+
+                <button class="btn btn-secondary"
+                    onclick="loadRecommendation(true)">
+                    Give me another task
+                </button>
+            </div>
+
+        </div>
+    `;
+}
+
+
+function refreshCurrentViews() {
+
+    loadToday();
+    loadAllTasks();
+    loadDeadlines();
+    loadCompleted();
+}
+
+
+showPage('today');
+
+</script>
+
+</body>
+</html>
