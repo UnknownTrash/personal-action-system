@@ -6,6 +6,8 @@ import sqlite3
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from contextlib import asynccontextmanager
+import os
+from pathlib import Path
 import sidequests
 
 
@@ -18,7 +20,10 @@ async def lifespan(app):
 app = FastAPI(lifespan=lifespan)
 app.include_router(sidequests.create_router(lambda: DB_FILE))
 
-DB_FILE = "/opt/focus/tasks.db"
+DB_FILE = os.getenv(
+    "TODO_DB_PATH",
+    str(Path(__file__).resolve().with_name("tasks.db")),
+)
 LOCAL_TIMEZONE = ZoneInfo("Asia/Hong_Kong")
 Priority = Literal["High", "Medium", "Low"]
 TaskStatus = Literal["Not Started", "In Progress", "Done"]

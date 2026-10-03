@@ -98,10 +98,10 @@ New content is HTML-escaped. Failed Side Quest requests do not block Todo render
 
 ## Verification
 
-From `/opt/focus`:
+From the repository root:
 
 ```sh
-venv/bin/python -B -m unittest discover -s tests -v
+python -B -m unittest discover -s tests -v
 ```
 
 The suite runs the existing 23 Todo tests and 16 Side Quest tests. All requests use

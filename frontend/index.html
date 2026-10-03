@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Todo App</title>
-    <link rel="stylesheet" href="/sidequests.css">
+    <title>Focus — Tasks &amp; Side Quests</title>
+    <link rel="stylesheet" href="/sidequests.css?v=20260930-1">
 
     <style>
         * {
@@ -462,6 +462,7 @@
         }
 
 </style>
+    <link rel="stylesheet" href="/app.css?v=20260930-1">
 </head>
 
 <body>
@@ -469,26 +470,28 @@
 <div class="app">
 
     <aside class="sidebar">
-        <div class="logo">Todo</div>
+        <div class="logo"><span class="logo-mark" aria-hidden="true">F</span><span>Focus</span></div>
+        <p class="sidebar-label">Workspace</p>
 
         <button class="nav-btn active" id="nav-today" onclick="showPage('today')">
-            Today
+            <span class="nav-icon" aria-hidden="true">●</span>Today
         </button>
 
         <button class="nav-btn" id="nav-all" onclick="showPage('all')">
-            All Tasks
+            <span class="nav-icon" aria-hidden="true">☷</span>All Tasks
         </button>
 
         <button class="nav-btn" id="nav-deadlines" onclick="showPage('deadlines')">
-            Deadlines
+            <span class="nav-icon" aria-hidden="true">◇</span>Deadlines
         </button>
 
         <button class="nav-btn" id="nav-completed" onclick="showPage('completed')">
-            Completed
+            <span class="nav-icon" aria-hidden="true">✓</span>Completed
         </button>
         <button class="nav-btn" id="nav-sidequests" onclick="showPage('sidequests')">
-            Side Quests
+            <span class="nav-icon" aria-hidden="true">✦</span>Side Quests
         </button>
+        <div class="sidebar-footer"><span class="status-dot" aria-hidden="true"></span>Ready to focus</div>
     </aside>
 
     <main class="main">
@@ -497,8 +500,9 @@
 
             <div class="page-header today-header">
                 <div>
+                    <p class="eyebrow">Your day</p>
                     <h1>Today</h1>
-                    <p>Focus on what matters most.</p>
+                    <p id="todayLocalDate">Focus on what matters most.</p>
                 </div>
 
                 <button class="btn btn-primary" onclick="openAddModal()">
@@ -853,7 +857,7 @@
         </form>
     </div>
 </div>
-<script src="/sidequests.js"></script>
+<script src="/sidequests.js?v=20260930-1"></script>
 <script>
 
 let currentRecommendationId = null;
@@ -1034,6 +1038,22 @@ function handleAddModalBackground(event) {
 }
 
 
+async function reportMutationFailure(response, action) {
+    let responseBody = '';
+
+    try {
+        responseBody = await response.text();
+    } catch (error) {
+        responseBody = `[Could not read response body: ${error.message}]`;
+    }
+
+    console.error(
+        `${action} failed (HTTP ${response.status})\nResponse body: ${responseBody}`
+    );
+    alert(`${action} failed (HTTP ${response.status}). Check the browser console for details.`);
+}
+
+
 async function createTask() {
 
     const title =
@@ -1088,7 +1108,7 @@ async function createTask() {
     });
 
     if (!res.ok) {
-        alert('Failed to create task');
+        await reportMutationFailure(res, 'Create task');
         return;
     }
 
@@ -1341,7 +1361,7 @@ async function loadDeadlines() {
 
 async function startTask(id) {
 
-    await fetch(`/api/tasks/${id}`, {
+    const res = await fetch(`/api/tasks/${id}`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json'
@@ -1351,13 +1371,18 @@ async function startTask(id) {
         })
     });
 
+    if (!res.ok) {
+        await reportMutationFailure(res, 'Start task');
+        return;
+    }
+
     refreshCurrentViews();
 }
 
 
 async function completeTask(id) {
 
-    await fetch(`/api/tasks/${id}`, {
+    const res = await fetch(`/api/tasks/${id}`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json'
@@ -1366,6 +1391,11 @@ async function completeTask(id) {
             status: 'Done'
         })
     });
+
+    if (!res.ok) {
+        await reportMutationFailure(res, 'Complete task');
+        return;
+    }
 
     refreshCurrentViews();
 }
@@ -1505,7 +1535,7 @@ async function saveTaskEdit() {
     });
 
     if (!res.ok) {
-        alert('Failed to update task');
+        await reportMutationFailure(res, 'Update task');
         return;
     }
 
@@ -1518,9 +1548,14 @@ async function deleteTask(id) {
 
     if (!confirm('Delete this task?')) return;
 
-    await fetch(`/api/tasks/${id}`, {
+    const res = await fetch(`/api/tasks/${id}`, {
         method: 'DELETE'
     });
+
+    if (!res.ok) {
+        await reportMutationFailure(res, 'Delete task');
+        return;
+    }
 
     refreshCurrentViews();
 }
@@ -1598,6 +1633,17 @@ function refreshCurrentViews() {
 }
 
 
+function renderLocalDate() {
+    const date = new Intl.DateTimeFormat('en-HK', {
+        timeZone: 'Asia/Hong_Kong',
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long'
+    }).format(new Date());
+    document.getElementById('todayLocalDate').textContent = date;
+}
+
+renderLocalDate();
 showPage('today');
 
 </script>

@@ -11,11 +11,18 @@ async function sqRequest(path = '', options = {}) {
     const response = await fetch('/api/sidequests' + path, {
         ...options, headers: { 'Content-Type': 'application/json', ...options.headers }
     });
-    const data = await response.json().catch(() => null);
+    const responseBody = await response.text();
+    let data = null;
+    try { data = responseBody ? JSON.parse(responseBody) : null; } catch (_) { /* Keep raw body for diagnostics. */ }
     if (!response.ok) {
+        console.error(
+            `Side Quest request failed: ${options.method || 'GET'} /api/sidequests${path} ` +
+            `(HTTP ${response.status})\nResponse body: ${responseBody}`
+        );
         const detail = data?.detail;
-        throw new Error(Array.isArray(detail) ? detail.map(error => error.msg).join('; ')
-            : (typeof detail === 'string' ? detail : `Side Quests request failed (${response.status}).`));
+        const message = Array.isArray(detail) ? detail.map(error => error.msg).join('; ')
+            : (typeof detail === 'string' ? detail : 'Side Quests request failed.');
+        throw new Error(`${message} (HTTP ${response.status})`);
     }
     return data;
 }

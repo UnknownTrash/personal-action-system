@@ -20,6 +20,7 @@ tasks.json
 .env.*
 *.env
 *.env.*
+!.env.example
 *credential*
 *Credential*
 *secret*
@@ -45,3 +46,32 @@ id_dsa*
 id_ecdsa*
 id_ed25519*
 .ssh/
+
+# Logs, temporary files, test output, and local tooling
+*.log
+logs/
+log/
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+tmp/
+temp/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Local editor and operating-system metadata
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Python packaging output
+build/
+dist/
+*.egg-info/

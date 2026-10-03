@@ -2,7 +2,12 @@
 """Install Todo Basic authentication. Run with the project's Python and sudo.
 
 --check performs preflight and isolated tests without changing deployment files.
-Credentials are generated into /etc/myapi/auth.env, never printed.
+Credentials are generated into the configured auth environment file, never printed.
+
+Deployment paths and service names can be configured with the TODO_PROJECT_ROOT,
+TODO_MAIN_FILE, TODO_NGINX_CONFIG, TODO_AUTH_ENV, TODO_SYSTEMD_DROPIN,
+TODO_BACKUP_ROOT, TODO_FRONTEND_FILE, TODO_APP_SERVICE, and TODO_NGINX_SERVICE
+environment variables.
 """
 import argparse
 import asyncio
@@ -10,24 +15,43 @@ import base64
 import hashlib
 import os
 from pathlib import Path
+import re
 import secrets
 import shutil
 import sqlite3
 import subprocess
+import sys
 import tempfile
 import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 
-MAIN = Path('/opt/focus/main.py')
-NGINX = Path('/etc/nginx/sites-available/default')
-ENV = Path('/etc/myapi/auth.env')
-DROPIN = Path('/etc/systemd/system/myapi.service.d/auth.conf')
+PROJECT_ROOT = Path(
+    os.environ.get('TODO_PROJECT_ROOT', Path(__file__).resolve().parents[1])
+).expanduser().resolve()
+MAIN = Path(os.environ.get('TODO_MAIN_FILE', PROJECT_ROOT / 'main.py')).expanduser().resolve()
+NGINX = Path(os.environ.get(
+    'TODO_NGINX_CONFIG', '/etc/nginx/sites-available/default'
+)).expanduser().resolve()
+ENV = Path(os.environ.get('TODO_AUTH_ENV', '/etc/myapi/auth.env')).expanduser().resolve()
+DROPIN = Path(os.environ.get(
+    'TODO_SYSTEMD_DROPIN', '/etc/systemd/system/myapi.service.d/auth.conf'
+)).expanduser().resolve()
+BACKUP_ROOT = Path(os.environ.get(
+    'TODO_BACKUP_ROOT', '/var/backups/myapi-auth'
+)).expanduser().resolve()
+FRONTEND = Path(os.environ.get(
+    'TODO_FRONTEND_FILE', '/var/www/html/index.html'
+)).expanduser().resolve()
+APP_SERVICE = os.environ.get('TODO_APP_SERVICE', 'myapi.service')
+NGINX_SERVICE = os.environ.get('TODO_NGINX_SERVICE', 'nginx.service')
 DB = MAIN.parent / 'tasks.db'
 EXPECTED = {
-    MAIN: 'c4674cfe25b531bccffd3ae30553560dbf9175dc072e73cd61e59de0374847f1',
-    NGINX: '165671acee54309bd921804c4165a4e32ddb887951cabb2dbd6193f146a841b1',
+    path: expected for path, expected in (
+        (MAIN, os.environ.get('TODO_EXPECTED_MAIN_SHA256')),
+        (NGINX, os.environ.get('TODO_EXPECTED_NGINX_SHA256')),
+    ) if expected
 }
 AUTH = '''import base64
 import binascii
@@ -109,9 +133,18 @@ def proposed_files():
         raise RuntimeError('Authentication config already exists; refusing to overwrite it')
     source = MAIN.read_text()
     nginx = NGINX.read_text()
-    assert source.count('app = FastAPI()') == 1
+    app_initializers = list(re.finditer(
+        r'^app\s*=\s*FastAPI\([^\n]*\)\s*$', source, flags=re.MULTILINE
+    ))
+    if len(app_initializers) != 1:
+        raise RuntimeError('Expected exactly one single-line FastAPI application initializer')
     assert nginx.count('\tserver_name _;') == 1
-    return source.replace('app = FastAPI()', AUTH), nginx.replace(
+    initializer = app_initializers[0]
+    auth_source = AUTH.replace('app = FastAPI()', initializer.group(0), 1)
+    authenticated_source = (
+        source[:initializer.start()] + auth_source + source[initializer.end():]
+    )
+    return authenticated_source, nginx.replace(
         '\tserver_name _;', '\tserver_name _;\n' + NGINX_AUTH, 1)
 
 
@@ -147,11 +180,15 @@ async def request(app, method, path, header=None, body=b''):
 def isolated_tests(source):
     import json
     saved = {key: os.environ.get(key) for key in ('TODO_AUTH_USERNAME', 'TODO_AUTH_PASSWORD')}
+    project_path = str(MAIN.parent)
+    added_project_path = project_path not in sys.path
+    if added_project_path:
+        sys.path.insert(0, project_path)
     username, password = 'test-user', secrets.token_urlsafe(24)
     os.environ['TODO_AUTH_USERNAME'] = username
     os.environ['TODO_AUTH_PASSWORD'] = password
     try:
-        namespace = {'__name__': 'todo_auth_test'}
+        namespace = {'__name__': 'todo_auth_test', '__file__': str(MAIN)}
         exec(compile(source, str(MAIN), 'exec'), namespace)
         with sqlite3.connect(f'file:{DB}?mode=ro', uri=True) as conn:
             schema = conn.execute("SELECT sql FROM sqlite_master WHERE name='tasks'").fetchone()[0]
@@ -193,12 +230,16 @@ def isolated_tests(source):
             asyncio.run(checks())
         os.environ.pop('TODO_AUTH_PASSWORD')
         try:
-            exec(compile(source, str(MAIN), 'exec'), {'__name__': 'missing_auth_test'})
+            exec(compile(source, str(MAIN), 'exec'), {
+                '__name__': 'missing_auth_test', '__file__': str(MAIN)
+            })
         except RuntimeError:
             pass
         else:
             raise AssertionError('Missing credentials must prevent startup')
     finally:
+        if added_project_path:
+            sys.path.remove(project_path)
         for key, value in saved.items():
             if value is None:
                 os.environ.pop(key, None)
@@ -246,15 +287,14 @@ def install(source, nginx):
         raise SystemExit('Run installation with sudo; --check does not need sudo.')
     run('/usr/sbin/nginx', '-t')
     stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
-    backup = Path('/var/backups/myapi-auth') / stamp
+    backup = BACKUP_ROOT / stamp
     backup.mkdir(parents=True, mode=0o700, exist_ok=False)
     backup.parent.chmod(0o700)
     for path in (MAIN, NGINX):
         shutil.copy2(path, backup / path.name)
     run('cp', '-a', str(DB), str(backup / DB.name))
     original_db_hash = digest(DB)
-    frontend = Path('/var/www/html/index.html')
-    original_frontend_hash = digest(frontend)
+    original_frontend_hash = digest(FRONTEND)
     username, password = 'todoadmin', secrets.token_urlsafe(32)
     created = []
     changed = []
@@ -265,7 +305,7 @@ def install(source, nginx):
             handle.write(f'TODO_AUTH_USERNAME={username}\nTODO_AUTH_PASSWORD={password}\n')
         created.append(ENV)
         with DROPIN.open('x') as handle:
-            handle.write('[Service]\nEnvironmentFile=/etc/myapi/auth.env\n')
+            handle.write(f'[Service]\nEnvironmentFile={ENV}\n')
         created.append(DROPIN)
         changed.append(MAIN)
         MAIN.write_text(source)
@@ -273,7 +313,7 @@ def install(source, nginx):
         NGINX.write_text(nginx)
         run('/usr/sbin/nginx', '-t')
         run('systemctl', 'daemon-reload')
-        run('systemctl', 'restart', 'myapi.service')
+        run('systemctl', 'restart', APP_SERVICE)
         for _ in range(40):
             try:
                 http_check('http://127.0.0.1:8000/__todo_auth', 'GET', None, 401)
@@ -282,12 +322,12 @@ def install(source, nginx):
                 time.sleep(0.25)
         else:
             raise RuntimeError('Todo app did not become ready')
-        run('systemctl', 'reload', 'nginx.service')
+        run('systemctl', 'reload', NGINX_SERVICE)
         time.sleep(1)
         live_tests(username, password)
         assert digest(DB) == original_db_hash, 'Task database changed during installation'
-        assert digest(frontend) == original_frontend_hash, 'Frontend file unexpectedly changed'
-        run('systemctl', 'is-active', 'myapi.service', 'nginx.service')
+        assert digest(FRONTEND) == original_frontend_hash, 'Frontend file unexpectedly changed'
+        run('systemctl', 'is-active', APP_SERVICE, NGINX_SERVICE)
     except Exception:
         print(f'Installation failed; restoring deployment files from {backup}')
         for path in reversed(changed):
@@ -296,14 +336,14 @@ def install(source, nginx):
             path.unlink()
         run('systemctl', 'daemon-reload')
         run('/usr/sbin/nginx', '-t')
-        run('systemctl', 'restart', 'myapi.service')
-        run('systemctl', 'reload', 'nginx.service')
+        run('systemctl', 'restart', APP_SERVICE)
+        run('systemctl', 'reload', NGINX_SERVICE)
         raise
     print(f'Installed. Backups: {backup}')
-    print('Changed: /opt/focus/main.py; /etc/nginx/sites-available/default')
-    print('Created: /etc/myapi/auth.env (0600); /etc/systemd/system/myapi.service.d/auth.conf')
+    print(f'Changed: {MAIN}; {NGINX}')
+    print(f'Created: {ENV} (0600); {DROPIN}')
     print('Database and frontend file hashes unchanged. Xray and port 443 were not modified.')
-    print('View login credentials privately in your terminal: sudo cat /etc/myapi/auth.env')
+    print(f'View login credentials privately in your terminal: sudo cat {ENV}')
 
 
 def main():
