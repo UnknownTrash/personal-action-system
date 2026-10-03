@@ -87,6 +87,6 @@ Todo validation and Side Quests are implemented and covered by backend regressio
 
 The optional authentication installer is deployment-specific and should be reviewed and adapted before use on another server.
 
-## Screenshots
+## Screenshot
 
-The repository includes a capture guide in `screenshots/`. Public screenshots should use demonstration data only.
+![Today Dashboard](screenshots/today-desktop.png)
